@@ -44,12 +44,38 @@
     align-items: center;
     background: rgba(255,255,255,0.05);
     box-shadow: 0 0 20px rgba(56,189,248,0.3);
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.2s;
+    position: relative;
   }
 
   .circle.small {
     width: 150px;
     height: 150px;
     border-width: 6px;
+  }
+
+  .circle:hover {
+    transform: scale(1.05);
+  }
+
+  .active {
+    animation: glow 1.2s infinite alternate;
+  }
+
+  @keyframes glow {
+    0% {
+      box-shadow: 0 0 20px rgba(56,189,248,0.5);
+      transform: scale(1.05);
+    }
+    50% {
+      box-shadow: 0 0 40px rgba(56,189,248,0.9);
+      transform: scale(1.08);
+    }
+    100% {
+      box-shadow: 0 0 30px rgba(56,189,248,0.7);
+      transform: scale(1.05);
+    }
   }
 
   .label {
@@ -62,26 +88,26 @@
     font-weight: bold;
   }
 
-  .controls {
-    margin-top: 30px;
-  }
-
-  .controls button {
-    font-size: 1em;
-    padding: 10px 20px;
-    margin: 6px;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    font-weight: 600;
-  }
-
-  #startBtn { background-color: #22c55e; color: white; }
-  #pauseBtn { background-color: #facc15; color: black; }
-  #nextBtn  { background-color: #ef4444; color: white; }
-
   .hidden { display: none; }
 
+  .amendment-setup {
+    margin-top: 20px;
+  }
+
+  .amendment-setup input {
+    width: 60px;
+    text-align: center;
+    margin: 0 10px;
+  }
+
+  .amendment-setup button {
+    padding: 5px 15px;
+    border-radius: 8px;
+    border: none;
+    background-color: #22c55e;
+    color: white;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -89,14 +115,10 @@
 <h1>🗣️ Debate Timer</h1>
 
 <div id="setup" class="setup">
-  <h2>Setup Times (minutes)</h2>
+  <h2>Resolution Setup Times (minutes)</h2>
   <p>
     Resolution – In Favour: <input type="number" id="resFor" value="5" min="0">
     &nbsp;&nbsp;Resolution – Against: <input type="number" id="resAgainst" value="5" min="0">
-  </p>
-  <p>
-    Amendment – In Favour: <input type="number" id="amFor" value="3" min="0">
-    &nbsp;&nbsp;Amendment – Against: <input type="number" id="amAgainst" value="3" min="0">
   </p>
   <button id="beginBtn">Start Debate</button>
 </div>
@@ -124,86 +146,119 @@
     </div>
   </div>
 
-  <div class="controls">
-    <button id="startBtn">Start</button>
-    <button id="pauseBtn">Pause</button>
-    <button id="nextBtn">Next</button>
+  <div class="amendment-setup">
+    <label>Amendment – In Favour: <input type="number" id="amForInput" value="3" min="0"></label>
+    <label>Amendment – Against: <input type="number" id="amAgainstInput" value="3" min="0"></label>
+    <button id="resetAm">Reset Amendment Timers</button>
   </div>
 </div>
 
 <script>
 const timers = [
-  { id: "resForTime", label: "Resolution – In Favour", minutes: 0 },
-  { id: "resAgainstTime", label: "Resolution – Against", minutes: 0 },
-  { id: "amForTime", label: "Amendment – In Favour", minutes: 0 },
-  { id: "amAgainstTime", label: "Amendment – Against", minutes: 0 }
+  { id: "resForTime", label: "Resolution – In Favour", minutes: 0, interval: null, running: false, fixed:true },
+  { id: "resAgainstTime", label: "Resolution – Against", minutes: 0, interval: null, running: false, fixed:true },
+  { id: "amForTime", label: "Amendment – In Favour", minutes: 0, interval: null, running: false, fixed:false },
+  { id: "amAgainstTime", label: "Amendment – Against", minutes: 0, interval: null, running: false, fixed:false }
 ];
-
-let current = 0;
-let remaining = 0;
-let running = false;
-let interval = null;
 
 function formatTime(sec) {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
-function updateDisplay() {
-  timers.forEach((t, i) => {
-    document.getElementById(t.id).textContent = (i === current)
-      ? formatTime(remaining)
-      : formatTime(t.minutes * 60);
+function updateDisplay(index) {
+  document.getElementById(timers[index].id).textContent = formatTime(timers[index].remaining);
+}
+
+function stopAllTimers() {
+  timers.forEach(t => {
+    const circle = document.getElementById(t.id).parentElement;
+    circle.classList.remove("active");
+    if(t.interval){
+      clearInterval(t.interval);
+      t.interval = null;
+      t.running = false;
+    }
   });
 }
 
-function startTimer() {
-  if (running) return;
-  running = true;
-  interval = setInterval(() => {
-    if (remaining > 0) {
-      remaining--;
-      updateDisplay();
-    } else {
-      stopTimer();
-      alert("⏰ Time’s up for " + timers[current].label);
-    }
-  }, 1000);
-}
+function toggleTimer(index) {
+  const t = timers[index];
+  const circle = document.getElementById(t.id).parentElement;
+  if(t.remaining <= 0) return;
 
-function stopTimer() {
-  running = false;
-  clearInterval(interval);
-}
-
-function nextTimer() {
-  stopTimer();
-  if (current < timers.length - 1) {
-    current++;
-    remaining = timers[current].minutes * 60;
-    updateDisplay();
+  if(t.running){
+    clearInterval(t.interval);
+    t.interval = null;
+    t.running = false;
+    circle.classList.remove("active");
   } else {
-    alert("🏁 Debate complete!");
+    stopAllTimers();
+    t.running = true;
+    circle.classList.add("active");
+    t.interval = setInterval(() => {
+      if(t.remaining > 0){
+        t.remaining--;
+        updateDisplay(index);
+      } else {
+        clearInterval(t.interval);
+        t.interval = null;
+        t.running = false;
+        circle.classList.remove("active");
+        updateDisplay(index);
+        alert(`⏰ Time's up for ${t.label}`);
+      }
+    }, 1000);
   }
 }
 
 document.getElementById("beginBtn").addEventListener("click", () => {
-  timers[0].minutes = parseInt(document.getElementById("resFor").value) || 0;
-  timers[1].minutes = parseInt(document.getElementById("resAgainst").value) || 0;
-  timers[2].minutes = parseInt(document.getElementById("amFor").value) || 0;
-  timers[3].minutes = parseInt(document.getElementById("amAgainst").value) || 0;
+  // Fixed resolution timers
+  timers[0].minutes = parseInt(document.getElementById("resFor").value)||0;
+  timers[1].minutes = parseInt(document.getElementById("resAgainst").value)||0;
 
-  remaining = timers[0].minutes * 60;
+  timers.forEach((t,index) => {
+    if(t.fixed){ // Resolution timers
+      t.remaining = t.minutes*60;
+      t.interval = null;
+      t.running = false;
+      updateDisplay(index);
+    }
+  });
+
+  // Initialize Amendment timers
+  timers[2].minutes = parseInt(document.getElementById("amForInput").value)||3;
+  timers[3].minutes = parseInt(document.getElementById("amAgainstInput").value)||3;
+  timers[2].remaining = timers[2].minutes*60;
+  timers[3].remaining = timers[3].minutes*60;
+  updateDisplay(2);
+  updateDisplay(3);
+
   document.getElementById("setup").classList.add("hidden");
   document.getElementById("timerUI").classList.remove("hidden");
-  updateDisplay();
 });
 
-document.getElementById("startBtn").addEventListener("click", startTimer);
-document.getElementById("pauseBtn").addEventListener("click", stopTimer);
-document.getElementById("nextBtn").addEventListener("click", nextTimer);
+// Reset Amendment timers independently
+document.getElementById("resetAm").addEventListener("click", () => {
+  timers[2].minutes = parseInt(document.getElementById("amForInput").value)||3;
+  timers[3].minutes = parseInt(document.getElementById("amAgainstInput").value)||3;
+  timers[2].remaining = timers[2].minutes*60;
+  timers[3].remaining = timers[3].minutes*60;
+
+  [2,3].forEach(i=>{
+    stopAllTimers(); // stop if running
+    updateDisplay(i);
+  });
+});
+
+// Add click events
+timers.forEach((t, index)=>{
+  const circle = document.getElementById(t.id).parentElement;
+  circle.addEventListener("click", ()=>toggleTimer(index));
+});
 </script>
 
 </body>
 </html>
+
