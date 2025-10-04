@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Debate Timer</title>
+<style>
+  body {
+    font-family: 'Poppins', sans-serif;
+    text-align: center;
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    color: #f8fafc;
+    padding: 20px;
+  }
+
+  h1 {
+    margin-bottom: 10px;
+    font-size: 2.2em;
+  }
+
+  .setup {
+    background: rgba(255,255,255,0.1);
+    border-radius: 15px;
+    padding: 20px;
+    display: inline-block;
+  }
+
+  .circle-container {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 40px;
+    margin-top: 40px;
+  }
+
+  .circle {
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    border: 8px solid #38bdf8;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(255,255,255,0.05);
+    box-shadow: 0 0 20px rgba(56,189,248,0.3);
+  }
+
+  .circle.small {
+    width: 150px;
+    height: 150px;
+    border-width: 6px;
+  }
+
+  .label {
+    font-size: 1.1em;
+    margin-bottom: 5px;
+  }
+
+  .time {
+    font-size: 2em;
+    font-weight: bold;
+  }
+
+  .controls {
+    margin-top: 30px;
+  }
+
+  .controls button {
+    font-size: 1em;
+    padding: 10px 20px;
+    margin: 6px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  #startBtn { background-color: #22c55e; color: white; }
+  #pauseBtn { background-color: #facc15; color: black; }
+  #nextBtn  { background-color: #ef4444; color: white; }
+
+  .hidden { display: none; }
+
+</style>
+</head>
+<body>
+
+<h1>🗣️ Debate Timer</h1>
+
+<div id="setup" class="setup">
+  <h2>Setup Times (minutes)</h2>
+  <p>
+    Resolution – In Favour: <input type="number" id="resFor" value="5" min="0">
+    &nbsp;&nbsp;Resolution – Against: <input type="number" id="resAgainst" value="5" min="0">
+  </p>
+  <p>
+    Amendment – In Favour: <input type="number" id="amFor" value="3" min="0">
+    &nbsp;&nbsp;Amendment – Against: <input type="number" id="amAgainst" value="3" min="0">
+  </p>
+  <button id="beginBtn">Start Debate</button>
+</div>
+
+<div id="timerUI" class="hidden">
+  <div class="circle-container">
+    <div class="circle" id="resForCircle">
+      <div class="label">Resolution – In Favour</div>
+      <div class="time" id="resForTime">00:00</div>
+    </div>
+    <div class="circle" id="resAgainstCircle">
+      <div class="label">Resolution – Against</div>
+      <div class="time" id="resAgainstTime">00:00</div>
+    </div>
+  </div>
+
+  <div class="circle-container">
+    <div class="circle small" id="amForCircle">
+      <div class="label">Amendment – In Favour</div>
+      <div class="time" id="amForTime">00:00</div>
+    </div>
+    <div class="circle small" id="amAgainstCircle">
+      <div class="label">Amendment – Against</div>
+      <div class="time" id="amAgainstTime">00:00</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="startBtn">Start</button>
+    <button id="pauseBtn">Pause</button>
+    <button id="nextBtn">Next</button>
+  </div>
+</div>
+
+<script>
+const timers = [
+  { id: "resForTime", label: "Resolution – In Favour", minutes: 0 },
+  { id: "resAgainstTime", label: "Resolution – Against", minutes: 0 },
+  { id: "amForTime", label: "Amendment – In Favour", minutes: 0 },
+  { id: "amAgainstTime", label: "Amendment – Against", minutes: 0 }
+];
+
+let current = 0;
+let remaining = 0;
+let running = false;
+let interval = null;
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function updateDisplay() {
+  timers.forEach((t, i) => {
+    document.getElementById(t.id).textContent = (i === current)
+      ? formatTime(remaining)
+      : formatTime(t.minutes * 60);
+  });
+}
+
+function startTimer() {
+  if (running) return;
+  running = true;
+  interval = setInterval(() => {
+    if (remaining > 0) {
+      remaining--;
+      updateDisplay();
+    } else {
+      stopTimer();
+      alert("⏰ Time’s up for " + timers[current].label);
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  running = false;
+  clearInterval(interval);
+}
+
+function nextTimer() {
+  stopTimer();
+  if (current < timers.length - 1) {
+    current++;
+    remaining = timers[current].minutes * 60;
+    updateDisplay();
+  } else {
+    alert("🏁 Debate complete!");
+  }
+}
+
+document.getElementById("beginBtn").addEventListener("click", () => {
+  timers[0].minutes = parseInt(document.getElementById("resFor").value) || 0;
+  timers[1].minutes = parseInt(document.getElementById("resAgainst").value) || 0;
+  timers[2].minutes = parseInt(document.getElementById("amFor").value) || 0;
+  timers[3].minutes = parseInt(document.getElementById("amAgainst").value) || 0;
+
+  remaining = timers[0].minutes * 60;
+  document.getElementById("setup").classList.add("hidden");
+  document.getElementById("timerUI").classList.remove("hidden");
+  updateDisplay();
+});
+
+document.getElementById("startBtn").addEventListener("click", startTimer);
+document.getElementById("pauseBtn").addEventListener("click", stopTimer);
+document.getElementById("nextBtn").addEventListener("click", nextTimer);
+</script>
+
+</body>
+</html>
